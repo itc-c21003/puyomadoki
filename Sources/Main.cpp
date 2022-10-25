@@ -3,6 +3,7 @@
 #include"MapData.h"
 #include"Move.h"
 #include"Hit.h"
+#include "Start.h"
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
@@ -11,21 +12,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	// Windowsモードにする
 	ChangeWindowMode(TRUE);
 	// 画面サイズの設定
-	SetGraphMode(640, 480, 32);
+	SetGraphMode(480, 480, 32);
 	
 	// DXライブラリ初期化
 	if (DxLib_Init() == -1)
 	{	//初期化に失敗した
 		return -1;	       }
 	// 描画先画面を裏画面にセット
-	SetDrawScreen(DX_SCREEN_BACK);
-	ResetMap();
+	SetDrawScreen(DX_SCREEN_BACK);	
 	BlockInit();
-	RandomBlock();
 	//------------------------------------------------------
     // メインループ部分
 	while (ProcessMessage() == 0)
 	{
+		bool Main = GetMain();
+		if (!Main) 
+		{
+			while (!Main)//スタート画面
+			{
+				Start();
+				Main = GetMain();
+				if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
+			}		
+			ResetMap();
+			MoveLoadMap();
+			SearchLoadMap();
+			RandomBlock();
+		}
 		//裏画面を消す
 		ClearDrawScreen();
 		//移動処理
@@ -38,8 +51,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		float y2 = GetY2();
 		int C1 = GetCl1();
 		int C2 = GetCl2();
+		int Nc1 = GetNext1();
+		int Nc2 = GetNext2();
 		//描画
-		DrawBlock(x1, x2, y1, y2,C1,C2);
+		DrawMap(Nc1,Nc2);
+		DarwMove(x1, y1, C1);
+		DarwMove(x2, y2, C2);
 		//裏画面を表画面を入れ替える
 		ScreenFlip();
 		if (MAP_HitCheck(x1, y1, false) || MAP_HitCheck(x2, y2, false))
@@ -55,7 +72,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				//浮いてるブロックの落下処理
 				DropMove();
 				//描画
-				DrawBlock(0, 0, 0, 0, 0, 0);
+				DrawMap(Nc1, Nc2);
+				DrawDrop();
 				//裏画面を表画面を入れ替える
 				ScreenFlip(); 
 				if (!GetDrop())//落下完了
@@ -66,8 +84,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 						ClearDrawScreen();
 						//ブロックの消去
 						Search();
+						while (GetErase())
+						{
+							//裏画面を消す
+							ClearDrawScreen();
+							Deadcount();
+							//描画
+							DrawMap(Nc1, Nc2);
+							//裏画面を表画面を入れ替える
+							ScreenFlip();
+							if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
+						}
 						//描画
-						DrawBlock(0, 0, 0, 0, 0, 0);
+						DrawMap(Nc1, Nc2);
 						//裏画面を表画面を入れ替える
 						ScreenFlip();
 						if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
@@ -82,11 +111,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
 			}
 			Search_chengeMap();
+			MoveLoadMap();
 			RandomBlock();
 		}
 		//ESCキーを押して終了
 		if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
-		if (CheckHitKey(KEY_INPUT_Z)) WaitKey();
 	}
 	//======================================================
 	// DXライブラリ終了とプログラム終了
